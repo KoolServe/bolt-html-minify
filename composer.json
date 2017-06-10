@@ -1,0 +1,31 @@
+{
+    "name": "koolserve/html-minify",
+    "description": "Minify HTML output",
+    "type": "bolt-extension",
+    "keywords": [
+        "Minify HTML",
+        "Site Optimization"
+    ],
+    "require": {
+        "bolt/bolt": "^3.2"
+    },
+    "license": "GPL-3.0",
+    "authors": [
+        {
+            "name": "Chris Hilsdon",
+            "email": "chris@koolserve.uk"
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "autoload": {
+        "psr-4": {
+            "Bolt\\Extension\\Koolserve\\HtmlMinify\\": "src"
+        }
+    },
+    "extra": {
+        "bolt-assets": "web",
+        "bolt-class": "Bolt\\Extension\\Koolserve\\HtmlMinify\\HtmlMinifyExtension",
+        "bolt-icon": "icon.png"
+    }
+}
