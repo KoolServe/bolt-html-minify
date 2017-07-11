@@ -27,13 +27,20 @@ class HtmlMinifyExtension extends SimpleExtension
                 return $response;
             }
 
-            // Don't minify JSON
-            if ($response->headers->get('Content-Type') === 'application/json') {
+            // Only run if on the frontend and debug is disabled
+            if (!Zone::isFrontend($request) || $app['config']->get('general/debug')) {
                 return $response;
             }
 
-            // Only run if on the frontend and debug is disabled
-            if (!Zone::isFrontend($request) || $app['config']->get('general/debug')) {
+            $contentType = $response->headers->get('Content-Type');
+
+            // Don't minify images
+            if (strpos($contentType, 'image') !== false) {
+                return $response;
+            }
+
+            // Don't minify JSON
+            if ($contentType === 'application/json') {
                 return $response;
             }
 
@@ -41,7 +48,7 @@ class HtmlMinifyExtension extends SimpleExtension
             $response->setContent($this->minify($response->getContent()));
 
             return $response;
-        });
+        }, -1025);
     }
 
     private function minify($content)
@@ -71,7 +78,12 @@ class HtmlMinifyExtension extends SimpleExtension
             '/\),[\r\n\t ]+/s' => '),',
             // Remove quotes from HTML attributes that does not contain spaces; keep quotes around URLs!
             // $1 and $4 insert first white-space character found before/after attribute
-            '~([\r\n\t ])?([a-zA-Z0-9]+)="([a-zA-Z0-9_/\\-]+)"([\r\n\t ])?~s' => '$1$2=$3$4'
+            '~([\r\n\t ])?([a-zA-Z0-9]+)="([a-zA-Z0-9_/\\-]+)"([\r\n\t ])?~s' => '$1$2=$3$4',
+            // Remove spaces at the end of HTML elements
+            '/" \/\>/' => '"/>',
+            '/\' \/\>/' => '\'/>',
+            // Remove any remaning new lines
+            '/\r?\n|\r/' => ''
         ];
 
         return preg_replace(array_keys($replace), array_values($replace), $content);
