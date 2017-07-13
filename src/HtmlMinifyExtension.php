@@ -83,7 +83,7 @@ class HtmlMinifyExtension extends SimpleExtension
             '/" \/\>/' => '"/>',
             '/\' \/\>/' => '\'/>',
             // Remove any remaning new lines
-            '/\r?\n|\r/' => ''
+            '/\r?\n|\r/' => ' '
         ];
 
         return preg_replace(array_keys($replace), array_values($replace), $content);
