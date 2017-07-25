@@ -38,6 +38,11 @@ class HtmlMinifyExtension extends SimpleExtension
             if (strpos($contentType, 'image') !== false) {
                 return $response;
             }
+            
+            // Don't minify xml
+            if (strpos($contentType, 'application/xml') !== false) {
+                return $response;
+            }
 
             // Don't minify JSON
             if ($contentType === 'application/json') {
