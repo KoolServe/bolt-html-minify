@@ -5,6 +5,7 @@ namespace Bolt\Extension\Koolserve\HtmlMinify;
 use Bolt\Controller\Zone;
 use Bolt\Extension\SimpleExtension;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
@@ -16,6 +17,10 @@ use Symfony\Component\HttpKernel\Event\FilterResponseEvent;
  */
 class HtmlMinifyExtension extends SimpleExtension
 {
+    protected $response;
+
+    protected $inlineTag = '<replaceTag>';
+
     protected function subscribe(EventDispatcherInterface $dispatcher)
     {
         $dispatcher->addListener(KernelEvents::RESPONSE, function (FilterResponseEvent $event) {
@@ -38,7 +43,7 @@ class HtmlMinifyExtension extends SimpleExtension
             if (strpos($contentType, 'image') !== false) {
                 return $response;
             }
-            
+
             // Don't minify xml
             if (strpos($contentType, 'application/xml') !== false) {
                 return $response;
@@ -50,14 +55,69 @@ class HtmlMinifyExtension extends SimpleExtension
             }
 
             // Minify and return the HTML
-            $response->setContent($this->minify($response->getContent()));
+            $this->minify($response);
 
             return $response;
         }, -1025);
     }
 
-    private function minify($content)
+    private function encodeCodeTag()
     {
+        $content = $this->response->getContent();
+        preg_match_all("/<code([^>]+)?>([^<]*)<\/code>/", $content, $out);
+        if ($out[0] === []) {
+            return true;
+        }
+
+        foreach ($out[0] as $code) {
+            $newContent = $this->inlineTag . base64_encode($code) . $this->inlineTag;
+            $content = str_replace($code, $newContent, $content);
+        }
+        $this->response->setContent($content);
+    }
+
+    private function decodeCodeTag()
+    {
+        $content = $this->response->getContent();
+        preg_match_all("/" . $this->inlineTag . "([^<]*)" . $this->inlineTag . "/", $content, $out);
+        if ($out[0] === []) {
+            return true;
+        }
+
+        foreach ($out[1] as $key => $code) {
+            $base64 = base64_decode($code);
+            $content = str_replace($code, $base64, $content);
+        }
+
+        $this->response->setContent($content);
+    }
+
+    private function removeTempTags()
+    {
+        $replace = [
+            '/\<replaceTag\>/' => ''
+        ];
+
+        $content = preg_replace(array_keys($replace), array_values($replace), $this->response->getContent());
+        $this->response->setContent($content);
+    }
+
+    private function beforeMinify()
+    {
+        $this->encodeCodeTag();
+    }
+
+    private function afterMinify()
+    {
+        $this->decodeCodeTag();
+        $this->removeTempTags();
+    }
+
+    private function minify(Response $response)
+    {
+        $this->response = $response;
+        $this->beforeMinify();
+
         $replace = [
             // Remove HTML comments
             '/<!--(.*?)-->/s' => '',
@@ -91,6 +151,10 @@ class HtmlMinifyExtension extends SimpleExtension
             '/\r?\n|\r/' => ' '
         ];
 
-        return preg_replace(array_keys($replace), array_values($replace), $content);
+        $content = preg_replace(array_keys($replace), array_values($replace), $this->response->getContent());
+        $this->response->setContent($content);
+        $this->afterMinify();
+
+        return $this->response;
     }
 }
